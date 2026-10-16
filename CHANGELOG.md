@@ -4,6 +4,19 @@ All notable changes to Pika. Format: [Keep a Changelog](https://keepachangelog.c
 
 ## [Unreleased]
 
+### Security
+Findings of an AI-assisted code review, all fixed (run `php pika migrate`: migration 007 adds `users.remember_issued`):
+- A successful login no longer erases the failed attempts recorded against other usernames from the same IP.
+- Client IP behind a proxy is read from the right of `X-Forwarded-For` (the left side is client-controlled).
+- Login attempts are recorded before they are counted, so parallel requests cannot exceed the limit.
+- The username lockout no longer applies to the account's last login IP, so strangers cannot lock the owner out.
+- The dummy hash used for unknown usernames is created with the current `PASSWORD_DEFAULT` cost (timing).
+- Password reset: mail is sent after the response (PHP-FPM / LiteSpeed) and at most once per account every 2 minutes.
+- Remember-me tokens expire on the server after 30 days and rotate on every automatic login.
+- Root `.htaccess` rewrite is anchored, so `.php` files outside `public/` cannot be reached with a trailing `/public/`.
+- `safe_redirect_url` rejects backslashes and user-info URLs.
+- `Query::where()` refuses `null` values (use `whereNull()` / `whereNotNull()`); `key:generate` writes `.env` with mode 0600.
+
 ## [0.1.0]
 First public version.
 

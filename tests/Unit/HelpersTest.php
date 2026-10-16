@@ -33,6 +33,28 @@ class HelpersTest extends TestCase
         unset($_ENV['TRUSTED_PROXIES'], $_SERVER['HTTP_X_FORWARDED_FOR']);
     }
 
+    /** @dataProvider forwardedChains */
+    public function testForwardedForIsReadFromTheRightAndSkipsOnlyTrustedProxies(string $remote, string $header, string $expected): void
+    {
+        $_ENV['TRUSTED_PROXIES'] = '10.0.0.1, 10.0.0.2';
+        $_SERVER['REMOTE_ADDR'] = $remote;
+        $_SERVER['HTTP_X_FORWARDED_FOR'] = $header;
+        try { $this->assertSame($expected, getIP()); }
+        finally { unset($_ENV['TRUSTED_PROXIES'], $_SERVER['HTTP_X_FORWARDED_FOR']); }
+    }
+
+    public static function forwardedChains(): array
+    {
+        return [
+            'client spoofs the left-hand entry'      => ['10.0.0.1', '6.6.6.6, 198.51.100.7', '198.51.100.7'],
+            'spoof plus a CDN hop we trust'          => ['10.0.0.1', '6.6.6.6, 198.51.100.7, 10.0.0.2', '198.51.100.7'],
+            'plain single entry'                     => ['10.0.0.1', '198.51.100.7', '198.51.100.7'],
+            'garbage entry stops the walk'           => ['10.0.0.1', '198.51.100.7, not-an-ip', '10.0.0.1'],
+            'no header'                              => ['10.0.0.1', '', '10.0.0.1'],
+            'untrusted peer ignores the header'      => ['203.0.113.9', '6.6.6.6', '203.0.113.9'],
+        ];
+    }
+
     public function testBasePathFromFrontControllerLocation(): void
     {
         $_SERVER['SCRIPT_NAME'] = '/index.php';
@@ -68,6 +90,11 @@ class HelpersTest extends TestCase
             $this->assertSame('http://example.com/', safe_redirect_url($bad), $bad);
         }
         $this->assertStringNotContainsString("\n", safe_redirect_url("/ok\r\nSet-Cookie: x=1"));
+
+        // a browser reads "\" as "/" and "user@host" as a login for host, while parse_url sees our host
+        foreach (['https://evil.com\\@example.com/', 'http://example.com\\.evil.com/', 'http://example.com@evil.com/', 'http://user:pw@example.com/x'] as $bad) {
+            $this->assertSame('http://example.com/', safe_redirect_url($bad), $bad);
+        }
     }
 
     public function testEscapeHelper(): void

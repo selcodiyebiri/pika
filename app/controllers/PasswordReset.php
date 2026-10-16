@@ -33,15 +33,20 @@ class PasswordReset extends Controller
             ? DB::getRow("SELECT id, username FROM users WHERE email = ? AND status = 1", [$email])
             : false;
 
-        if ($user) {
+        // At most one mail per account every 2 minutes: nobody can flood a victim's inbox or keep killing their earlier link.
+        $recent = $user && DB::getVar("SELECT COUNT(*) FROM password_resets WHERE user_id = ? AND created_at > ?", [$user->id, time() - 120]);
+
+        if ($user && !$recent) {
             $token = hash_generator(64);
             DB::exec("UPDATE password_resets SET used_at = ? WHERE user_id = ? AND used_at IS NULL", [time(), $user->id]);
             DB::insert(
                 "INSERT INTO password_resets (user_id, token_hash, expires_at, ip, created_at) VALUES (?, ?, ?, ?, ?)",
                 [$user->id, hash('sha256', $token), time() + self::TTL, getIP(), time()]
             );
-            Mail::send($email, 'Reset your password', "Use this link within 1 hour to choose a new password:\n\n"
-                . route('RESET', ['any' => $token]) . "\n\nIf you did not ask for this, ignore this message.\n");
+            $link = route('RESET', ['any' => $token]);
+            // sent after the response, so the response time does not tell whether the address has an account
+            after_response(fn() => Mail::send($email, 'Reset your password', "Use this link within 1 hour to choose a new password:\n\n"
+                . $link . "\n\nIf you did not ask for this, ignore this message.\n"));
             audit_log('password_reset_requested', '', $user->id);
         }
 

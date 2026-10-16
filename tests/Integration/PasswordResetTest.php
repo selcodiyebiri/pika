@@ -75,12 +75,27 @@ class PasswordResetTest extends IntegrationTestCase
         $this->makeUser('alice', 'Correct-horse-9', 0, 'alice@example.com');
         $this->request('alice@example.com');
         $first = $this->mailedToken();
+        DB::exec("UPDATE password_resets SET created_at = created_at - 600");   // the 2 minute cool-down has passed
         $this->request('alice@example.com', '10.5.0.2');
         $second = $this->mailedToken();
 
         $this->assertNotSame($first, $second);
         $this->assertSame(400, $this->client()->get("/reset/$first/")->status);
         $this->assertSame(200, $this->client()->get("/reset/$second/")->status);
+    }
+
+    public function testRepeatedRequestsDoNotFloodOrKillTheEarlierLink(): void
+    {
+        $this->makeUser('alice', 'Correct-horse-9', 0, 'alice@example.com');
+        $this->request('alice@example.com');
+        $first = $this->mailedToken();
+
+        // an attacker asking again and again (from other IPs) changes nothing for the real owner
+        foreach (['10.5.0.2', '10.5.0.3', '10.5.0.4'] as $ip) $this->request('alice@example.com', $ip);
+
+        $this->assertSame(1, (int) DB::getVar("SELECT COUNT(*) FROM password_resets"));
+        $this->assertSame($first, $this->mailedToken());
+        $this->assertSame(200, $this->client()->get("/reset/$first/")->status);
     }
 
     public function testRequestsAreRateLimited(): void

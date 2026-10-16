@@ -45,4 +45,10 @@ Meant for hosting without a terminal; the page does not exist unless you create 
 - Rate limiting is per IP (`RateLimit` middleware) and on login/reset; put a WAF or reverse-proxy limit in front for real DoS protection.
 - Sessions use PHP's default file storage; on shared hosting make sure `session.save_path` is private to your account.
 - Password reset needs working SMTP (`MAIL_*`); the `log` mail driver is refused outside `APP_ENV=local`.
-- The password reset request has a small timing difference between known and unknown addresses (mail sending).
+- The password reset mail is sent after the response on PHP-FPM and LiteSpeed, so the response time does not show whether an address has an
+  account. On other setups (mod_php, the built-in server) it is sent before the response ends and a small timing difference remains.
+- Login throttling: 5 failed attempts per IP and 10 per username in 15 minutes. The username limit does not apply to the IP the
+  account last signed in from, so a stranger cannot lock you out from your usual place; from a new IP you wait out the 15 minutes.
+- Remember-me tokens expire after 30 days on the server and are replaced on every automatic login.
+- Client IPs behind a proxy are read from the right of `X-Forwarded-For` and stop at the first address not listed in `TRUSTED_PROXIES`;
+  list every proxy and CDN hop you have, or limits and logs will see the proxy's address.

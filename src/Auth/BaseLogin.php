@@ -13,10 +13,27 @@ use Pika\Controller,
 abstract class BaseLogin extends Controller
 {
     private const MAX_ATTEMPTS = 5;           // failed attempts per IP in WINDOW
-    private const MAX_USER_ATTEMPTS = 10;     // failed attempts per username in WINDOW (any IP)
+    private const MAX_USER_ATTEMPTS = 10;     // failed attempts per username in WINDOW (any IP), not applied to the account's last login IP
     private const WINDOW = 900; // seconds
-    // Verified against when the username does not exist, so timing does not reveal valid usernames
-    private const DUMMY_HASH = '$2y$12$3EZzsI3k4.Lmd.VNhPjCfO0FbtGO8HctaRu372Cmj.xxQnB5Gu84a';
+
+    /**
+     * Hash verified against when the username does not exist, so timing does not reveal valid usernames.
+     * It must have the same cost as real hashes (PASSWORD_DEFAULT changes between PHP versions), so it is created
+     * once with the current default and kept in content/cache.
+     */
+    protected static function dummyHash(): string
+    {
+        static $hash = null;
+        if ($hash !== null) return $hash;
+
+        $file = BASEPATH . '/content/cache/dummy.hash';
+        $hash = is_file($file) ? trim((string) file_get_contents($file)) : '';
+        if ($hash === '' || password_needs_rehash($hash, PASSWORD_DEFAULT)) {
+            $hash = password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT);
+            @file_put_contents($file, $hash, LOCK_EX);
+        }
+        return $hash;
+    }
 
     /** Show the "remember me" checkbox on the form. */
     protected bool $remember = false;
@@ -49,23 +66,31 @@ abstract class BaseLogin extends Controller
         $username = trim((string) $request->request->get('username', ''));
         $password = (string) $request->request->get('password', '');
 
-        $since = time() - self::WINDOW;
-        if (DB::getVar("SELECT COUNT(*) FROM login_attempts WHERE ip = ? AND time > ?", [$ip, $since]) >= self::MAX_ATTEMPTS
-            || ($username !== '' && DB::getVar("SELECT COUNT(*) FROM login_attempts WHERE username = ? AND time > ?", [mb_substr($username, 0, 191), $since]) >= self::MAX_USER_ATTEMPTS)) {
-            $response->setStatusCode(429);
-            return $this->form($response, 'Too many failed attempts. Try again later.');
-        }
-
         $user = $username === '' ? false : DB::getRow(
             "SELECT * FROM users WHERE username = ? AND status = 1" . $this->accountCondition(),
             [$username]
         );
 
-        if (password_verify($password, $user ? $user->password : self::DUMMY_HASH) && $user) {
+        // Record the attempt first, then count (it includes this one): parallel requests cannot slip past the limit together.
+        $name = mb_substr($username, 0, 191);
+        $since = time() - self::WINDOW;
+        DB::insert("INSERT INTO login_attempts (ip, username, time) VALUES (?, ?, ?)", [$ip, $name, time()]);
+
+        $ipBlocked = DB::getVar("SELECT COUNT(*) FROM login_attempts WHERE ip = ? AND time > ?", [$ip, $since]) > self::MAX_ATTEMPTS;
+        // The username limit stops distributed guessing, but must not let a stranger lock the owner out:
+        // it does not apply to the IP the account last signed in from.
+        $knownIp = $user && $user->last_ip === $ip;
+        $userBlocked = !$knownIp && $username !== ''
+            && DB::getVar("SELECT COUNT(*) FROM login_attempts WHERE username = ? AND time > ?", [$name, $since]) > self::MAX_USER_ATTEMPTS;
+        if ($ipBlocked || $userBlocked) {
+            $response->setStatusCode(429);
+            return $this->form($response, 'Too many failed attempts. Try again later.');
+        }
+
+        if (password_verify($password, $user ? $user->password : static::dummyHash()) && $user) {
             $this->succeed($request, $user, $password, $ip);
         }
 
-        DB::insert("INSERT INTO login_attempts (ip, username, time) VALUES (?, ?, ?)", [$ip, mb_substr($username, 0, 191), time()]);
         $response->setStatusCode(401);
         return $this->form($response, 'Invalid username or password.');
     }
@@ -90,7 +115,8 @@ abstract class BaseLogin extends Controller
 
     private function succeed(Request $request, object $user, string $password, string $ip): void
     {
-        DB::exec("DELETE FROM login_attempts WHERE ip = ?", [$ip]);
+        // forget only the attempts for this account from this IP; other usernames keep counting
+        DB::exec("DELETE FROM login_attempts WHERE ip = ? AND username = ?", [$ip, mb_substr((string) $user->username, 0, 191)]);
 
         $agent = $request->headers->get('User-Agent', '');
         DB::exec("UPDATE users SET last_ip = ?, user_agent = ? WHERE id = ?", [$ip, mb_substr($agent, 0, 255), $user->id]);
@@ -113,11 +139,6 @@ abstract class BaseLogin extends Controller
     /** Issue a remember-me cookie; the database keeps only its sha256 hash. */
     protected function issueRememberToken(object $user): void
     {
-        $token = hash_generator(64);
-        DB::exec("UPDATE users SET remember_token = ? WHERE id = ?", [hash('sha256', $token), $user->id]);
-        setcookie('remember_token', $token, [
-            'expires' => time() + 30 * 86400, 'path' => '/',
-            'secure' => is_https(), 'httponly' => true, 'samesite' => 'Strict',
-        ]);
+        remember_token_issue((int) $user->id);
     }
 }

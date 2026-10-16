@@ -19,8 +19,12 @@ if (!empty($_COOKIE['remember_token']) && is_string($_COOKIE['remember_token']) 
         [hash('sha256', $_COOKIE['remember_token'])]
     );
 
-    if ($search_user && user_session_verify($search_user)) {
+    // legacy tokens without an issue time count as expired
+    $fresh = $search_user && $search_user->remember_issued && time() - (int) $search_user->remember_issued < REMEMBER_TTL;
+
+    if ($fresh && user_session_verify($search_user)) {
         user_session_set($search_user);
+        remember_token_issue((int) $search_user->id);   // rotate: a stolen cookie stops working after the owner's next visit
         user_log_add([
             'user_id'    => $search_user->id,
             'action'     => 'auto_login',

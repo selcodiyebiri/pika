@@ -39,6 +39,7 @@ define("MYSQL_DB", pika_env('MYSQL_DB', 'pika'));
 define("MYSQL_USER", pika_env('MYSQL_USER', 'root'));
 define("MYSQL_PASS", pika_env('MYSQL_PASS', ''));
 
+define("REMEMBER_TTL", 30 * 86400);                                    // remember-me cookie and server-side lifetime
 define("SESSION_IDLE", (int) pika_env('SESSION_IDLE', 1800));          // seconds without a request
 define("SESSION_ABSOLUTE", (int) pika_env('SESSION_ABSOLUTE', 28800)); // max session age
 define("RATE_LIMIT", (int) pika_env('RATE_LIMIT', 60));                // requests per window (RateLimit middleware)
@@ -53,9 +54,12 @@ ini_set('display_errors', APP_DEBUG ? '1' : '0');
 ini_set('log_errors', '1');
 
 /* Proxy headers (X-Forwarded-*) are trusted only from addresses listed in TRUSTED_PROXIES */
+function trusted_proxies(): array {
+    return array_values(array_filter(array_map('trim', explode(',', (string) pika_env('TRUSTED_PROXIES', '')))));
+}
+
 function is_trusted_proxy(): bool {
-    $list = array_filter(array_map('trim', explode(',', (string) pika_env('TRUSTED_PROXIES', ''))));
-    return in_array($_SERVER['REMOTE_ADDR'] ?? '', $list, true);
+    return in_array($_SERVER['REMOTE_ADDR'] ?? '', trusted_proxies(), true);
 }
 
 function is_https(): bool {

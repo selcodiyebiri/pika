@@ -290,6 +290,7 @@ PHP);
             ? preg_replace('/^PIKA_LICENSE=.*$/m', "PIKA_LICENSE=$key", $content)
             : rtrim($content) . "\nPIKA_LICENSE=$key\n";
         file_put_contents($env, ltrim($content));
+        @chmod($env, 0600);
         self::out('PIKA_LICENSE written to .env');
         return 0;
     }

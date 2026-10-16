@@ -128,8 +128,14 @@ function csp_nonce(): string {
 function getIP(): string {
     $ip = $_SERVER['REMOTE_ADDR'] ?? '';
     if (is_trusted_proxy()) {
-        $first = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '')[0]);
-        if (filter_var($first, FILTER_VALIDATE_IP)) $ip = $first;
+        // Every hop appends the address it saw, so only the right-hand entries come from our own proxies; the left-hand
+        // ones are whatever the client claimed. Walk from the right and stop at the first address that is not a trusted proxy.
+        $hops = array_reverse(array_map('trim', explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '')));
+        foreach ($hops as $hop) {
+            if (!filter_var($hop, FILTER_VALIDATE_IP)) break;
+            $ip = $hop;
+            if (!in_array($hop, trusted_proxies(), true)) break;
+        }
     }
     return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : 'unknown';
 }
@@ -189,6 +195,9 @@ function safe_redirect_url(string $url): string {
     $url = str_replace(["\r", "\n", "\0"], '', trim($url));
     $site = currentSiteUrl();
 
+    // Browsers read "\" as "/" and "user@host" sends the visitor to host: parse_url and the browser would disagree.
+    if (str_contains($url, '\\') || parse_url($url, PHP_URL_USER) !== null) return $site . '/';
+
     if ($url !== '' && $url[0] === '/' && !preg_match('#^/[/\\\\]#', $url)) {
         return $site . $url;                                   // relative to the site
     }
@@ -236,6 +245,18 @@ function route(string $name, array $params = []): ?string {
 
     log_message('warning', "route('$name') does not exist");
     return null;
+}
+
+/**
+ * Run $fn after the response has been sent to the visitor (PHP-FPM and LiteSpeed); elsewhere it simply runs at the end
+ * of the request. Used for slow work whose duration must not show in the response time (sending mail).
+ */
+function after_response(callable $fn): void {
+    register_shutdown_function(function () use ($fn) {
+        if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+        elseif (function_exists('litespeed_finish_request')) litespeed_finish_request();
+        try { $fn(); } catch (\Throwable $e) { log_message('error', 'after_response failed: ' . $e->getMessage()); }
+    });
 }
 
 function cURL(array $params) {
@@ -413,6 +434,16 @@ function session_logout(string $prefix): void {
     unset($_SESSION["{$prefix}_logged_in"], $_SESSION["{$prefix}_logged_id"], $_SESSION["{$prefix}_logged_password"], $_SESSION["{$prefix}_logged_ver"]);
     session_regenerate_id(true);
     session_account($prefix, $prefix === 'admin', true);
+}
+
+/* Issue a remember-me cookie. The database keeps only the sha256 hash and the issue time (tokens expire after 30 days). */
+function remember_token_issue(int $userId): void {
+    $token = hash_generator(64);
+    DB::exec("UPDATE users SET remember_token = ?, remember_issued = ? WHERE id = ?", [hash('sha256', $token), time(), $userId]);
+    setcookie('remember_token', $token, [
+        'expires' => time() + REMEMBER_TTL, 'path' => '/',
+        'secure' => is_https(), 'httponly' => true, 'samesite' => 'Strict',
+    ]);
 }
 
 /* Invalidate every session and remember-me token of a user ("log out everywhere"). */

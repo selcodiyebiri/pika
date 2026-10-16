@@ -56,11 +56,23 @@ class Query
             throw new \InvalidArgumentException("Invalid operator: $operator");
         }
         if ($value === null) {
-            $this->wheres[] = self::ident($column) . ($operator === '=' ? ' IS NULL' : ' IS NOT NULL');
-        } else {
-            $this->wheres[] = self::ident($column) . " $operator ?";
-            $this->bindings[] = $value;
+            // a missing request value must never quietly become "IS NULL" and match rows: say so with whereNull()
+            throw new \InvalidArgumentException("where('$column', null) is ambiguous; use whereNull() or whereNotNull().");
         }
+        $this->wheres[] = self::ident($column) . " $operator ?";
+        $this->bindings[] = $value;
+        return $this;
+    }
+
+    public function whereNull(string $column): self
+    {
+        $this->wheres[] = self::ident($column) . ' IS NULL';
+        return $this;
+    }
+
+    public function whereNotNull(string $column): self
+    {
+        $this->wheres[] = self::ident($column) . ' IS NOT NULL';
         return $this;
     }
 

@@ -44,4 +44,10 @@ Terminali olmayan hosting için tasarlandı; `content/install.token` dosyasını
 - İstek sınırlama IP başınadır (`RateLimit` middleware'i) ve giriş/sıfırlama içindir; gerçek DoS koruması için önüne bir WAF ya da ters proxy sınırı koyun.
 - Oturumlar PHP'nin varsayılan dosya depolamasını kullanır; paylaşımlı hostingte `session.save_path` yolunun hesabınıza özel olduğundan emin olun.
 - Parola sıfırlama çalışan bir SMTP gerektirir (`MAIL_*`); `log` e-posta sürücüsü `APP_ENV=local` dışında reddedilir.
-- Parola sıfırlama isteğinde, bilinen ve bilinmeyen adresler arasında küçük bir zamanlama farkı vardır (e-posta gönderimi).
+- Parola sıfırlama e-postası PHP-FPM ve LiteSpeed'de yanıttan sonra gönderilir; bu yüzden yanıt süresi bir adresin hesabı olup olmadığını
+  göstermez. Diğer kurulumlarda (mod_php, yerleşik sunucu) e-posta yanıt bitmeden gönderilir ve küçük bir zamanlama farkı kalır.
+- Giriş sınırlaması: 15 dakikada IP başına 5, kullanıcı adı başına 10 başarısız deneme. Kullanıcı adı sınırı, hesabın en son giriş yaptığı IP için
+  geçerli değildir; böylece bir yabancı sizi her zamanki yerinizden kilitleyemez. Yeni bir IP'den 15 dakikayı beklersiniz.
+- "Beni hatırla" jetonları sunucuda 30 gün sonra sona erer ve her otomatik girişte yenilenir.
+- Proxy arkasında istemci IP'si `X-Forwarded-For` başlığının sağından okunur ve `TRUSTED_PROXIES` içinde olmayan ilk adreste durur;
+  sahip olduğunuz her proxy ve CDN adresini listeleyin, yoksa sınırlar ve loglar proxy'nin adresini görür.

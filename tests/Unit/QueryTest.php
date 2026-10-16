@@ -14,10 +14,20 @@ class QueryTest extends TestCase
 
     public function testArrayWhereNullAndIn(): void
     {
-        $q = Query::table('users')->where(['admin' => 1, 'email' => null])->whereIn('id', [1, 2, 3]);
-        $this->assertSame('SELECT * FROM `users` WHERE `admin` = ? AND `email` IS NULL AND `id` IN (?,?,?)', $q->toSql());
+        $q = Query::table('users')->where(['admin' => 1])->whereNull('email')->whereNotNull('phone')->whereIn('id', [1, 2, 3]);
+        $this->assertSame('SELECT * FROM `users` WHERE `admin` = ? AND `email` IS NULL AND `phone` IS NOT NULL AND `id` IN (?,?,?)', $q->toSql());
         $this->assertSame([1, 1, 2, 3], $q->bindings());
         $this->assertStringContainsString('1 = 0', Query::table('users')->whereIn('id', [])->toSql());
+    }
+
+    public function testNullValueInWhereIsRefusedInsteadOfMatchingNullRows(): void
+    {
+        foreach ([fn() => Query::table('users')->where('remember_token', null),
+                  fn() => Query::table('users')->where('remember_token', '=', null),
+                  fn() => Query::table('users')->where('id', '>', null),
+                  fn() => Query::table('users')->where(['remember_token' => null])] as $build) {
+            try { $build(); $this->fail('expected an exception'); } catch (\InvalidArgumentException $e) { $this->assertStringContainsString('whereNull', $e->getMessage()); }
+        }
     }
 
     public function testValuesNeverEndUpInTheSql(): void

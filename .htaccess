@@ -1,5 +1,5 @@
 # Safety net for setups whose document root is the project root (e.g. MAMP serving /pika/).
 # Prefer pointing the document root at /public.
 RewriteEngine On
-RewriteCond %{REQUEST_URI} !/public/
-RewriteRule ^(.*)$ public/$1 [L]
+# anchored: only paths that already start with public/ are left alone (a "/public/" anywhere else must not skip the rewrite)
+RewriteRule ^(?!public/)(.*)$ public/$1 [L]
