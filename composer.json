@@ -22,7 +22,10 @@
         ]
     },
     "config": {
-        "platform-check": false
+        "platform-check": false,
+        "platform": {
+            "php": "8.2.0"
+        }
     },
     "license": "MIT",
     "scripts": {
