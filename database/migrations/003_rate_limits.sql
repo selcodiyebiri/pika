@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS rate_limits (
+    bucket CHAR(64) NOT NULL PRIMARY KEY,
+    hits INT UNSIGNED NOT NULL,
+    window_start INT UNSIGNED NOT NULL,
+    INDEX (window_start)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

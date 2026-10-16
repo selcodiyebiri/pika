@@ -1,0 +1,14 @@
+# Uploaded files are data, never code: no scripts, no listings, no sniffing.
+Options -ExecCGI -Indexes
+RemoveHandler .php .phtml .phar .pht .php3 .php4 .php5 .php7 .php8
+RemoveType .php .phtml .phar .pht .php3 .php4 .php5 .php7 .php8
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<FilesMatch "(?i)\.(php[0-9]?|phtml|phar|pht|cgi|pl|py|sh|htaccess|htpasswd)$">
+    Require all denied
+</FilesMatch>
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set Content-Security-Policy "default-src 'none'; sandbox"
+</IfModule>

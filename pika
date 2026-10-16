@@ -1,0 +1,8 @@
+#!/usr/bin/env php
+<?php
+/* Pika CLI. Run "php pika" for the command list. */
+define('BASEPATH', __DIR__);
+require BASEPATH . '/includes/config.php';
+require BASEPATH . '/vendor/autoload.php';
+
+exit(Pika\Console\Commands::run($argv));

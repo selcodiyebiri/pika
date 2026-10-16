@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS password_resets (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    token_hash CHAR(64) NOT NULL UNIQUE,
+    expires_at INT UNSIGNED NOT NULL,
+    used_at INT UNSIGNED NULL,
+    ip VARCHAR(45) NOT NULL,
+    created_at INT UNSIGNED NOT NULL,
+    INDEX (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

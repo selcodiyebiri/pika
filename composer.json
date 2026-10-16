@@ -1,0 +1,36 @@
+{
+    "name": "pika/framework",
+    "description": "Pika - A PHP Framework For Web Artisans",
+    "require": {
+        "php": "^8.2",
+        "jenssegers/blade": "^2.0",
+        "izniburak/router": "^3.1",
+        "symfony/http-foundation": "^6.4",
+        "phpmailer/phpmailer": "^6.9"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Pika\\": "src/",
+            "App\\Models\\": "app/models/",
+            "App\\Jobs\\": "app/jobs/"
+        },
+        "files": [
+            "includes/helpers.php"
+        ]
+    },
+    "config": {
+        "platform-check": false
+    },
+    "license": "MIT",
+    "scripts": {
+        "test": "phpunit"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    }
+}

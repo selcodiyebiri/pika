@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="tests/bootstrap.php" colors="true" failOnWarning="true" cacheDirectory=".phpunit.cache">
+    <testsuites>
+        <testsuite name="unit"><directory>tests/Unit</directory></testsuite>
+        <testsuite name="integration"><directory>tests/Integration</directory></testsuite>
+    </testsuites>
+    <php>
+        <!-- tests only ever touch this database (the bootstrap refuses any name not ending in _test) -->
+        <env name="MYSQL_DB" value="pika_framework_test" force="true"/>
+        <env name="APP_ENV" value="local" force="true"/>
+        <env name="MAIL_DRIVER" value="log" force="true"/>
+        <env name="PIKA_LICENSE" value="test-license-not-a-secret" force="true"/> <!-- pika-secret-scan: ignore -->
+    </php>
+    <!-- report only deprecations raised by our own code, not by vendor/ -->
+    <source restrictDeprecations="true">
+        <include><directory>src</directory><directory>app</directory><directory>includes</directory></include>
+    </source>
+</phpunit>

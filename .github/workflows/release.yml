@@ -1,0 +1,45 @@
+name: Release
+
+# Pushing a tag like v1.0.0 builds a ZIP that already contains vendor/, for hosting without a terminal
+# (upload, unzip, then follow "Install without a terminal" in the README).
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'          # the lowest supported version, so vendor/ works everywhere
+          extensions: pdo_mysql, mbstring, openssl, curl, fileinfo
+          coverage: none
+
+      - run: composer install --no-dev --optimize-autoloader --prefer-dist --no-interaction
+
+      - name: Assemble the package
+        run: |
+          mkdir -p dist/pika
+          rsync -a \
+            --exclude='.git' --exclude='.github' --exclude='tests' --exclude='dist' \
+            --exclude='phpunit.xml' --exclude='.phpunit.cache' --exclude='.env' \
+            --exclude='content/cache/*' --exclude='content/logs/*' --exclude='content/install.*' \
+            --exclude='public/uploads/*' ./ dist/pika/
+          touch dist/pika/content/cache/.gitkeep dist/pika/content/logs/.gitkeep dist/pika/public/uploads/.gitkeep
+          cp public/uploads/.htaccess dist/pika/public/uploads/.htaccess
+          cd dist
+          zip -rq "pika-${GITHUB_REF_NAME}.zip" pika
+          sha256sum "pika-${GITHUB_REF_NAME}.zip" > "pika-${GITHUB_REF_NAME}.zip.sha256"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/pika-*.zip
+            dist/pika-*.zip.sha256
+          generate_release_notes: true

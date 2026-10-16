@@ -1,0 +1,26 @@
+# secrets and local config
+.env
+.env.*
+!.env.example
+
+# installer state
+/content/install.token
+/content/install.lock
+/content/install.running
+
+# dependencies and generated files
+/vendor/
+/content/cache/*
+!/content/cache/.gitkeep
+/content/logs/*
+!/content/logs/.gitkeep
+/public/uploads/*
+!/public/uploads/.gitkeep
+!/public/uploads/.htaccess
+.phpunit.result.cache
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+.phpunit.cache/
