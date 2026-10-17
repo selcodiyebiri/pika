@@ -1,0 +1,31 @@
+**Pika**
+
+* [Home](Home)
+* [Getting Started](Getting-Started)
+* [Tutorial: Notes Feature](Tutorial-Notes)
+* [Configuration](Configuration)
+* [Routing and Controllers](Routing-and-Controllers)
+* [Views and Themes](Views-and-Themes)
+* [Blade Cookbook](Blade-Cookbook)
+* [Database and Models](Database-and-Models)
+* [Authentication and Security](Authentication-and-Security)
+* [Helpers and Utilities](Helpers-and-Utilities)
+* [Cron Jobs](Cron-Jobs)
+* [Deployment](Deployment)
+* [Command Line and Tests](Command-Line-and-Tests)
+
+**Türkçe**
+
+* [Ana Sayfa](Home-TR)
+* [Başlangıç](Getting-Started-TR)
+* [Öğretici: Not Defteri](Tutorial-Notes-TR)
+* [Yapılandırma](Configuration-TR)
+* [Rotalar ve Controller'lar](Routing-and-Controllers-TR)
+* [Görünümler ve Temalar](Views-and-Themes-TR)
+* [Blade Yemek Kitabı](Blade-Cookbook-TR)
+* [Veritabanı ve Modeller](Database-and-Models-TR)
+* [Kimlik Doğrulama ve Güvenlik](Authentication-and-Security-TR)
+* [Yardımcılar](Helpers-and-Utilities-TR)
+* [Cron İşleri](Cron-Jobs-TR)
+* [Yayına Alma](Deployment-TR)
+* [Komut Satırı ve Testler](Command-Line-and-Tests-TR)
